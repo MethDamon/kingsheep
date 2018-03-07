@@ -1,4 +1,4 @@
-package kingsheep.team.uzh_shortname;
+package kingsheep.team.tstrass;
 
 import kingsheep.*;
 

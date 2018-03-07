@@ -1,4 +1,4 @@
-package kingsheep.team.uzh_shortname;
+package kingsheep.team.tstrass;
 
 import kingsheep.Creature;
 import kingsheep.Simulator;
@@ -15,6 +15,6 @@ public abstract class UzhShortNameCreature extends Creature {
 
     public String getNickname(){
         //TODO change this to any nickname you like. This should not be your uzh_shortname. That way you can stay anonymous on the ranking list.
-        return "my_nickname";
+        return "shaun_the_sheep";
     }
 }
