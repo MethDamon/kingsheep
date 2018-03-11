@@ -21,20 +21,6 @@ public abstract class UzhShortNameCreature extends Creature {
         return "shaun_the_sheep";
     }
 
-    protected MapState parseMap(Type [][] map) {
-        MapState mapState = new MapState();
-        Map<Coordinate, Field> typeMap = new HashMap<>();
-        for (int y = 0; y < map.length; y++) {
-            for (int x = 0; x < map[y].length; x++) {
-                Coordinate coordinate = new Coordinate(x, y);
-                Field field = new Field(map[y][x]);
-                typeMap.put(coordinate, field);
-            }
-        }
-        mapState.setFields(typeMap);
-        return mapState;
-    }
-
     protected Move getMove(Type[] positiveObjectives, Type[] negativeObjectives, Type[][] map) {
         Node<Type[][]> currentNode = new Node<>(map, null);
         List<Node<Type[][]>> successors = getValidSuccessorStates(currentNode);
