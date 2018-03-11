@@ -9,7 +9,9 @@ public class Sheep extends UzhShortNameCreature {
     }
 
     protected void think(Type map[][]) {
-        MapState mapState = parseMap(map);
-        move = getMove(mapState);
+        if (alive) {
+            move = getMove(new Type[]{Type.GRASS, Type.RHUBARB}, new Type[]{Type.WOLF2}, map);
+            //move = Move.WAIT;
+        }
     }
 }

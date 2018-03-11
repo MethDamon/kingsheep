@@ -4,13 +4,13 @@ import kingsheep.Type;
 
 public class Field {
 
-    private Type type;
+    private Type typeOnThisField;
 
     public Field(Type type) {
-        this.type = type;
+        this.typeOnThisField = type;
     }
 
-    public Type getType() {
-        return type;
+    public Type getTypeOnThisField() {
+        return typeOnThisField;
     }
 }

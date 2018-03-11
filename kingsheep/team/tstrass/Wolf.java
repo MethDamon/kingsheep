@@ -9,9 +9,13 @@ public class Wolf extends UzhShortNameCreature {
     }
 
     protected void think(Type map[][]) {
-        MapState mapState = parseMap(map);
-        move = getMove(mapState);
+        Type[] positiveObjectives;
+        if (playerID == 1) {
+             positiveObjectives = new Type[]{Type.SHEEP2};
+        } else {
+            positiveObjectives = new Type[]{Type.SHEEP2};
+        }
+        move = getMove(positiveObjectives, new Type[]{}, map);
+        //move = Move.WAIT;
     }
-
-
 }
