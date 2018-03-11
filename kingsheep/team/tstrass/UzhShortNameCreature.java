@@ -22,27 +22,7 @@ public abstract class UzhShortNameCreature extends Creature {
     }
 
     protected Move getMove(Type[] positiveObjectives, Type[] negativeObjectives, Type[][] map) {
-        Node<Type[][]> currentNode = new Node<>(map, null);
-        List<Node<Type[][]>> successors = getValidSuccessorStates(currentNode);
-        successors = successors
-                .stream()
-                .filter(node -> node.getMoveFromParentToThis() != Move.WAIT.ordinal()).collect(Collectors.toList());
-        if (successors.isEmpty()) {
-            return Move.WAIT;
-        }
-        Node<Type[][]> bestSuccessor = Collections.min(successors, (o1, o2) -> {
-            double evalO1 = getEval(o1.getState(), positiveObjectives, negativeObjectives);
-            double evalO2 = getEval(o2.getState(), positiveObjectives, negativeObjectives);
-            return Double.compare(evalO1, evalO2);
-        });
-       /* if (successors.stream().allMatch(node -> getEval(node.getState(), positiveObjectives, negativeObjectives)
-                == getEval(bestSuccessor.getState(), positiveObjectives, negativeObjectives))) {
-            Random random = new Random();
-            System.out.println("Returning random move");
-            return Move.values()[random.nextInt(5)];
-        }*/
-        System.out.println("Optimal move is " + Move.values()[bestSuccessor.getMoveFromParentToThis()]);
-        return Move.values()[bestSuccessor.getMoveFromParentToThis()];
+        return Move.WAIT;
     }
 
     private List<Node<Type[][]>> getValidSuccessorStates(Node<Type[][]> parentNode) {
