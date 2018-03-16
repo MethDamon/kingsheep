@@ -120,7 +120,7 @@ public abstract class UzhShortNameCreature extends Creature {
             if (current == null)
                 break;
             path.add(current);
-            System.out.println (current.getX() + " " + current.getY() + " " + Move.values()[current.getMoveFromParentToThis()] + " " + current.getType());
+            System.out.println(current.getX() + " " + current.getY() + " " + Move.values()[current.getMoveFromParentToThis()] + " " + current.getType());
         }
         return path;
     }

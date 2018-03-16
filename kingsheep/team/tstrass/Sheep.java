@@ -34,7 +34,7 @@ public class Sheep extends UzhShortNameCreature {
     // Manhattan distance
     @Override
     protected float getHeuristic(Type[][] map, Field start, Field goal) {
-         return getManhattan(start, goal) + getRhubarbFactor(goal) + getWolfFactor(map, goal)/10;
+        return getManhattan(start, goal) + getRhubarbFactor(goal) + getWolfFactor(map, goal) / 10;
     }
 
     private float getManhattan(Field start, Field goal) {
@@ -56,7 +56,7 @@ public class Sheep extends UzhShortNameCreature {
 
     private float getRhubarbFactor(Field field) {
         if (field.getType() == Type.RHUBARB) {
-            return - 1;
+            return -1;
         } else {
             return 0;
         }

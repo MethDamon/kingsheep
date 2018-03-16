@@ -21,7 +21,7 @@ final class Field {
         this.x = x;
         this.y = y;
         this.gCost = Float.MAX_VALUE;
-        this.uuid = UUID.nameUUIDFromBytes((String.valueOf(x)+String.valueOf(y)).getBytes());
+        this.uuid = UUID.nameUUIDFromBytes((String.valueOf(x) + String.valueOf(y)).getBytes());
     }
 
     public UUID getUuid() {
