@@ -32,7 +32,7 @@ public abstract class UzhShortNameCreature extends Creature {
 
         // Fields that are currently discovered, but not yet evaluated
         Queue<Field> openFields = new PriorityQueue<>(
-                (o1, o2) -> Float.compare(o1.getfCost(), o2.getfCost()));
+                (o1, o2) -> Float.compare(o1.calculateFCost(), o2.calculateFCost()));
 
         // For each node, which node it can most efficiently be reached from
         Map<Field, Field> cameFrom = new HashMap<>();

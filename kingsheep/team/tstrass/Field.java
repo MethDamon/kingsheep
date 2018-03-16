@@ -6,12 +6,10 @@ import java.util.List;
 import java.util.UUID;
 
 final class Field {
-    private UUID uuid;
     private int x;
     private int y;
     private float gCost;
     private float hCost;
-    private float fCost;
     private Field parent;
     private List<Field> children;
     private int moveFromParentToThis;
@@ -21,34 +19,10 @@ final class Field {
         this.x = x;
         this.y = y;
         this.gCost = Float.MAX_VALUE;
-        this.uuid = UUID.nameUUIDFromBytes((String.valueOf(x) + String.valueOf(y)).getBytes());
     }
 
-    public UUID getUuid() {
-        return uuid;
-    }
-
-    public float getfCost() {
+    public float calculateFCost() {
         return gCost + hCost;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        Field field = (Field) o;
-
-        if (x != field.x) return false;
-        if (y != field.y) return false;
-        return type == field.type;
-    }
-
-    @Override
-    public String toString() {
-        return "Field{" +
-                ", x=" + x +
-                ", y=" + y + "}";
     }
 
     public Type getType() {
