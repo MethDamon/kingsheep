@@ -1,6 +1,7 @@
 package kingsheep.team.tstrass;
 
-import kingsheep.*;
+import kingsheep.Simulator;
+import kingsheep.Type;
 
 public class Wolf extends UzhShortNameCreature {
 
