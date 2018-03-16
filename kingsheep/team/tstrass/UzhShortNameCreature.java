@@ -5,7 +5,7 @@ import kingsheep.Simulator;
 import kingsheep.Type;
 
 import java.util.*;
-import java.util.function.Predicate;
+import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 
 /**
@@ -17,178 +17,204 @@ public abstract class UzhShortNameCreature extends Creature {
         super(type, parent, playerID, x, y);
     }
 
-    public String getNickname(){
+    public String getNickname() {
         return "shaun_the_sheep";
     }
 
-    protected Move getMove(Type[] positiveObjectives, Type[] negativeObjectives, Type[][] map) {
+    /*  I actually do A* reverse here, so I start from the objectives and look for the shortest path
+        to the agent I am navigating
+        So "start" and "goal" are actually the "wrong" way around
+    */
+    Move getMove(Type[][] map, Type[] objectives) {
+
+        // Set of nodes that are already evaluated
+        Set<Field> closedFields = new HashSet<>();
+
+        // Fields that are currently discovered, but not yet evaluated
+        Queue<Field> openFields = new PriorityQueue<>(
+                (o1, o2) -> Float.compare(o1.getfCost(), o2.getfCost()));
+
+        // For each node, which node it can most efficiently be reached from
+        Map<Field, Field> cameFrom = new HashMap<>();
+
+        // Create the goal node (= the field the agent is in at the moment)
+        Field start = new Field(this.x, this.y);
+        start.setType(this.type);
+        start.setgCost(0);
+        start.sethCost(0);
+        openFields.add(start);
+
+        List<Field> fieldsContainingObjective = getFieldsContainingTypes(map, objectives);
+        Field goal;
+        Optional<Field> goalOptional = fieldsContainingObjective.stream().min(new Comparator<Field>() {
+            @Override
+            public int compare(Field o1, Field o2) {
+                return Float.compare(UzhShortNameCreature.this.getHeuristic(map, start, o1), UzhShortNameCreature.this.getHeuristic(map, start, o2));
+            }
+        });
+        if (goalOptional.isPresent()) {
+            goal = goalOptional.get();
+            goal.setChildren(Collections.emptyList());
+            goal.setParent(null);
+            goal.sethCost(Float.MAX_VALUE);
+        } else {
+            // There are no more objective available, leave it to the subclasses to say what to do
+            goal = getGoalWhenNoMoreObjectives(map);
+        }
+
+        while (!openFields.isEmpty()) {
+            Field current = openFields.poll();
+
+            System.out.println("Evaluating: " + "x: " + current.getX() + " y: " + current.getY());
+
+
+            if (hasTheSameCoordinates(current, goal)) {
+                List<Field> totalPath = reconstructPath(cameFrom, current);
+                if (totalPath.size() == 0) {
+                    return Move.values()[current.getMoveFromParentToThis()];
+                }
+                Move firstMoveTowardsGoal;
+                firstMoveTowardsGoal = Move.values()[totalPath.get(totalPath.size() - 1).getMoveFromParentToThis()];
+                return firstMoveTowardsGoal;
+            }
+
+            closedFields.add(current);
+
+            for (Field child : getValidMovesFromField(current, map)) {
+
+                if (isIn(closedFields, child)) continue; // Ignore the already evaluated field
+
+                if (!isIn(openFields, child)) {
+                    openFields.add(child);
+                } else {
+                    Field fieldMatchingCoordinates = getFieldWithMatchingCoordinates(openFields, child);
+                    child.setgCost(fieldMatchingCoordinates.getgCost());
+                    child.sethCost(fieldMatchingCoordinates.gethCost());
+                }
+
+                float distance = 1;
+                float tentativeG = distance + current.getgCost();
+
+                if (tentativeG < child.getgCost()) {
+                    child.setgCost(tentativeG);
+                    child.sethCost(getHeuristic(map, child, goal));
+
+                    if (!isIn(cameFrom.keySet(), child)) {
+                        cameFrom.put(child, current);
+                    } else {
+                        cameFrom.remove(child);
+                        cameFrom.put(child, current);
+                    }
+                }
+            }
+        }
         return Move.WAIT;
     }
 
-    private List<Node<Type[][]>> getValidSuccessorStates(Node<Type[][]> parentNode) {
-        List<Node<Type[][]>> validSuccessorStates = new ArrayList<>();
-        List<Move> moves = new ArrayList<>();
-        Collections.addAll(moves, Move.values());
-        List<Move> validMoves = moves
-                .stream()
-                .filter(move -> isValidMove(parentNode.getState(), move))
-                .collect(Collectors.toList());
+    protected abstract Field getGoalWhenNoMoreObjectives(Type[][] map);
 
-        try {
-            Coordinate oldCoordinates = getCoordinatesOfType(parentNode.getState(), this.type).get(0);
-            int oldX = oldCoordinates.getX();
-            int oldY = oldCoordinates.getY();
-            for (Move move : validMoves) {
-                int newX = 0;
-                int newY = 0;
-                if (move == Move.UP) {
-                    newX = oldX;
-                    newY = oldY - 1;
-                } else if (move == Move.DOWN) {
-                    newX = oldX;
-                    newY = oldY + 1;
-                } else if (move == Move.RIGHT) {
-                    newX = oldX + 1;
-                    newY = oldY;
-                } else if (move == Move.LEFT) {
-                    newX = oldX - 1;
-                    newY = oldY;
-                } else if (move == Move.WAIT) {
-                    newX = oldX;
-                    newY = oldY;
-                }
-                Type[][] parentMap = parentNode.getState();
-                Type[][] successor = new Type[parentMap.length][parentMap[0].length];
-                for (int i = 0; i < parentMap.length; i++) {
-                    for (int j = 0; j < parentMap.length; j++) {
-                        successor[i][j] = parentMap[i][j];
-                    }
-                }
-                successor[oldY][oldX] = Type.EMPTY;
-                successor[newY][newX] = this.type;
-                Node<Type[][]> node = new Node<>(successor, parentNode);
-                node.setMoveFromParentToThis(move.ordinal());
-                validSuccessorStates.add(node);
-            }
-        } catch (ArrayIndexOutOfBoundsException e) {
-            System.out.println(move + " is not a valid move for " + this.type + " now!");
-        } catch (IndexOutOfBoundsException e) {
-            System.out.println("Game was over");
+    private List<Field> reconstructPath(Map<Field, Field> cameFrom, Field current) {
+        List<Field> path = new ArrayList<>();
+        while (current.getParent() != null) {
+            current = getFieldWithMatchingCoordinates(cameFrom.keySet(), current.getParent());
+            if (current == null)
+                break;
+            path.add(current);
+            System.out.println (current.getX() + " " + current.getY() + " " + Move.values()[current.getMoveFromParentToThis()] + " " + current.getType());
         }
-        return validSuccessorStates;
+        return path;
     }
 
-    private boolean isValidMove(Type[][] map, Move move) {
-        Type typeOnNewField = Type.EMPTY;
+    private Field getFieldWithMatchingCoordinates(Collection<Field> openFields, Field child) {
+        for (Field field : openFields) {
+            if (hasTheSameCoordinates(field, child)) {
+                return field;
+            }
+        }
+        return null;
+    }
 
-        try {
+    private boolean hasDuplicate(Collection<Field> fields) {
+        return fields.stream().reduce(new BinaryOperator<Field>() {
+            @Override
+            public Field apply(Field field, Field field2) {
+                if (hasTheSameCoordinates(field, field2))
+                    return field;
+                else
+                    return null;
+            }
+        }).isPresent();
+    }
+
+    private boolean isIn(Collection<Field> fieldSet, Field f1) {
+        return fieldSet.stream().anyMatch(field -> hasTheSameCoordinates(f1, field));
+    }
+
+    private boolean hasTheSameCoordinates(Field f1, Field f2) {
+        return f1.getX() == f2.getX() && f1.getY() == f2.getY();
+    }
+
+    private Field getGotHereFrom(Field field, Map<Field, Field> cameFrom) {
+        Optional<Field> result = cameFrom.keySet().stream().filter(f -> field.getX() == f.getX() && field.getY() == f.getY()).findFirst();
+        if (result.isPresent()) {
+            return cameFrom.get(result);
+        }
+        return null;
+    }
+
+
+    protected List<Field> getFieldsContainingTypes(Type[][] map, Type[] objectives) {
+        List<Field> result = new ArrayList<>();
+        for (int y = 0; y < map.length; y++) {
+            for (int x = 0; x < map[y].length; x++) {
+                if (Arrays.asList(objectives).contains(map[y][x])) {
+                    Field field = new Field(x, y);
+                    field.setY(y);
+                    field.setX(x);
+                    field.setType(map[y][x]);
+                    result.add(field);
+                }
+            }
+        }
+        return result;
+    }
+
+    protected abstract float getHeuristic(Type[][] map, Field start, Field goal);
+
+    private List<Field> getValidMovesFromField(Field start, Type[][] map) {
+
+        List<Field> validMoves = new ArrayList<>();
+
+        for (Move move : Move.values()) {
+            int x = start.getX();
+            int y = start.getY();
+
             if (move == Move.UP) {
-                typeOnNewField = map[y - 1][x];
+                y--;
             } else if (move == Move.DOWN) {
-                typeOnNewField = map[y + 1][x];
+                y++;
             } else if (move == Move.LEFT) {
-                typeOnNewField = map[y][x - 1];
+                x--;
             } else if (move == Move.RIGHT) {
-                typeOnNewField = map[y][x + 1];
-            } else if (move == Move.WAIT) {
-                return true;
+                x++;
             }
-        } catch (ArrayIndexOutOfBoundsException e) {
-            return false;
-        }
 
-        boolean isAccessibleForWolf;
-        boolean isAccessibleForSheep = typeOnNewField == Type.EMPTY || typeOnNewField == Type.GRASS || typeOnNewField == Type.RHUBARB;
-        if (playerID == 1) {
-            isAccessibleForWolf = typeOnNewField == Type.EMPTY || (typeOnNewField == Type.GRASS) ||
-                    typeOnNewField == Type.SHEEP2 || (typeOnNewField == Type.RHUBARB);
+            Field fieldAfterMove = new Field(x, y);
+            fieldAfterMove.setMoveFromParentToThis(move.ordinal());
+            fieldAfterMove.setChildren(Collections.emptyList());
+            fieldAfterMove.setParent(start);
 
-        } else {
-            isAccessibleForWolf = typeOnNewField == Type.EMPTY || (typeOnNewField == Type.GRASS) ||
-                    typeOnNewField == Type.SHEEP1 || (typeOnNewField == Type.RHUBARB);
-        }
-
-        if (isSheep()) {
-            return isAccessibleForSheep;
-        } else {
-            return isAccessibleForWolf;
-        }
-    }
-
-    private double getEval(Type[][] map, Type[] positiveObjectives, Type[] negativeObjectives) {
-        return getDistanceFromObjectives(map, positiveObjectives) - getDistanceFromObjectives(map, negativeObjectives);
-    }
-
-    private double getDistanceFromObjectives(Type[][] map, Type[] objectives) {
-        List<Double> distances = new ArrayList<>(objectives.length);
-
-        for (Type objective : objectives) {
-            distances.add(getDistanceFromObjective(map, objective));
-        }
-
-        OptionalDouble optionalDouble = distances.stream().mapToDouble(Double::doubleValue).average();
-        return optionalDouble.isPresent() ? optionalDouble.getAsDouble() : 0;
-    }
-
-    private List<Coordinate> getCoordinatesOfType(Type[][] map, Type type) {
-        List<Coordinate> coordinates = new ArrayList<>();
-        for (int i = 0; i < map.length; i++) {
-            for (int j = 0; j < map[i].length; j++) {
-                if (map[i][j] == type) {
-                    coordinates.add(new Coordinate(j, i));
-                }
+            try {
+                // This will throw an ArrayOutOfBoundsException if the move is not on the field anymore
+                fieldAfterMove.setType(map[fieldAfterMove.getY()][fieldAfterMove.getX()]);
+            } catch (ArrayIndexOutOfBoundsException e) {
+                System.out.println("Invalid move: " + move);
             }
-        }
-        return coordinates;
-    }
 
-    private double getDistanceFromObjective(Type[][] map, Type objective) {
-        Coordinate coordinateOfThisCreature = getCoordinatesOfType(map, this.type).get(0);
-        List<Coordinate> coordinatesOfObjectives = getCoordinatesOfType(map, objective);
-
-        double sum = 0;
-        for (Coordinate c : coordinatesOfObjectives) {
-            int x1 = coordinateOfThisCreature.getX();
-            int y1 = coordinateOfThisCreature.getY();
-            int x2 = c != null ? c.getX() : 0;
-            int y2 = c != null ? c.getY() : 0;
-
-            int realX1 = Math.min(x1, x2);
-            int realX2 = Math.max(x1, x2);
-            int realY1 = Math.min(y1, y2);
-            int realY2 = Math.max(y1, y2);
-
-            int xDiff = realX2 - realX1;
-            int yDiff = realY2 - realY1;
-
-            double result = Math.sqrt(Math.pow(xDiff, 2) + Math.pow(yDiff, 2));
-            //double result = xDiff / yDiff;
-            sum += result;
+            validMoves.add(fieldAfterMove);
         }
 
-        return sum / coordinatesOfObjectives.size();
-    }
-
-    private void printMap(Type map[][]){
-        for (int i = 0; i < map.length; ++i)
-        {
-            for (int j = 0; j < map[0].length; ++j)
-            {
-                System.out.print(map[i][j].ordinal());
-            }
-            System.out.println("");
-        }
-        System.out.println("-------------------");
-    }
-
-    private int getNumberOfFencesInBetween(Type[][] map, int realX1, int realX2, int realY1, int realY2) {
-        int count = 0;
-        for(int i = realY1; i < realY2; i++) {
-            for(int j = realX1; j < realX2; j++) {
-                if (map[i][j] == Type.FENCE)
-                    count++;
-            }
-        }
-        return count;
+        // Filter out fence fields
+        return validMoves.stream().filter(field -> field.getType() != Type.FENCE).collect(Collectors.toList());
     }
 }

@@ -8,14 +8,20 @@ public class Wolf extends UzhShortNameCreature {
         super(type, parent, playerID, x, y);
     }
 
+    @Override
+    protected Field getGoalWhenNoMoreObjectives(Type[][] map) {
+        return null;
+    }
+
     protected void think(Type map[][]) {
-        Type[] positiveObjectives;
-        if (playerID == 1) {
-             positiveObjectives = new Type[]{Type.SHEEP2};
-        } else {
-            positiveObjectives = new Type[]{Type.SHEEP2};
-        }
-        move = getMove(positiveObjectives, new Type[]{}, map);
-        //move = Move.WAIT;
+        move = getMove(map, new Type[]{Type.SHEEP2});
+    }
+
+    // Manhattan distance
+    @Override
+    protected float getHeuristic(Type[][] map, Field start, Field goal) {
+        int dX = Math.abs(start.getX() - goal.getX());
+        int dY = Math.abs(start.getY() - goal.getY());
+        return dX + dY;
     }
 }
