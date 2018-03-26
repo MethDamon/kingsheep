@@ -18,20 +18,33 @@ public class Wolf extends UzhShortNameCreature {
     }
 
     protected void think(Type map[][]) {
-/*        if (playerID == 1) {
+        if (playerID == 1) {
             move = getMove(map, new Type[]{Type.SHEEP2});
         } else {
             move = getMove(map, new Type[]{Type.SHEEP1});
-        }*/
-        move = Move.WAIT;
+        }
     }
 
-    // Manhattan distance
     @Override
-    protected float getHeuristic(Type[][] map, Field start, Field goal) {
-        int dX = Math.abs(start.getX() - goal.getX());
-        int dY = Math.abs(start.getY() - goal.getY());
-        return dX + dY;
+    protected float getHeuristic(boolean noMoreGoalsLeft, Type[][] map, Field start, Field goal) {
+        float manhattan = getManhattan(start, goal);
+
+        if (noMoreGoalsLeft) {
+            return manhattan;
+        }
+
+        float rhubarbFactor = goal.getType() == Type.RHUBARB ? -4 : 0;
+        float grassFactor = goal.getType() == Type.GRASS ? -1 : 0;
+        float x = manhattan + rhubarbFactor + grassFactor;
+
+        float a = -4;
+        float b = 32;
+
+        float c = 0;
+        float d = 32;
+
+        float result = getNormalizedValue(x, a, b, c, d);
+        return result;
     }
 
     @Override

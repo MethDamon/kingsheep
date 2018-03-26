@@ -4,7 +4,9 @@ import kingsheep.Simulator;
 import kingsheep.Type;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 
 public class Sheep extends UzhShortNameCreature {
@@ -19,53 +21,54 @@ public class Sheep extends UzhShortNameCreature {
     protected Field getGoalWhenNoMoreObjectives(Type[][] map) {
         // Return the field as goal that maximizes the heuristic distance to the enemy wolf and find the shortest path to it
         Field fieldOfEnemyWolf = getFieldOfEnemyWolf(map);
-        float max = 0;
-        Field fieldMax = null;
+        PriorityQueue<Field> validFields = new PriorityQueue<>(
+                (o1, o2) -> -Float.compare(getManhattan(o1, fieldOfEnemyWolf), getManhattan(o2, fieldOfEnemyWolf)));
+
         for (int y = 0; y < map.length; y++) {
             for (int x = 0; x < map[y].length; x++) {
                 Field tempField = new Field(x, y);
-                float temp = getManhattan(tempField, fieldOfEnemyWolf);
-                if (temp > max) {
-                    max = temp;
-                    fieldMax = tempField;
+                tempField.setType(map[y][x]);
+                if (isValidField(tempField, map) && tempField.getType() != Type.FENCE) {
+                    validFields.add(tempField);
                 }
             }
         }
-        System.out.println(fieldMax.getX() + " " + fieldMax.getY());
-        return fieldMax;
+
+        System.out.println(validFields.peek().getX() + " " + validFields.peek().getY());
+
+        return validFields.poll();
     }
 
     @Override
-    protected float getHeuristic(Type[][] map, Field start, Field goal) {
-        float manhattan = getManhattan(start, goal);
-        float rhubarbFactor = getRhubarbFactor(goal);
-        float x = manhattan + 5*rhubarbFactor + getWolfFactor(map, goal);
+    protected float getHeuristic(boolean noMoreGoalsLeft, Type[][] map, Field start, Field goal) {
 
-        float a = -5;
+        float manhattan = getManhattan(start, goal);
+
+        if (noMoreGoalsLeft) {
+            return manhattan;
+        }
+
+        float rhubarbFactor = goal.getType() == Type.RHUBARB ? -4 : 0;
+        float grassFactor = goal.getType() == Type.GRASS ? -1 : 0;
+        float x = manhattan + rhubarbFactor + grassFactor;
+
+        float a = -4;
         float b = 32;
 
         float c = 0;
-        float d = 1;
+        float d = 32;
 
         float result = getNormalizedValue(x, a, b, c, d);
         return result;
     }
 
-    @Override
-    protected List<Field> filterOutInvalidMoves(List<Field> validMoves, Type[][] map) {
-        return validMoves.stream().filter(field -> {
-            Type type = field.getType();
-            if (playerID == 1) {
-                return type != Type.WOLF2 && type != Type.WOLF1 && type != Type.SHEEP2 && !couldBeEatenByWolfInNextTurnOnThatField(field, map);
-            } else {
-                return type != Type.WOLF2 && type != Type.WOLF1 && type != Type.SHEEP1 && !couldBeEatenByWolfInNextTurnOnThatField(field, map);
-            }
-        }).collect(Collectors.toList());
+    private boolean isValidField(Field field, Type[][] map) {
+        return !hasTheSameCoordinates(field, getFieldOfEnemyWolf(map)) && !couldBeEatenByWolfInNextTurnOnThatField(field, map);
     }
 
-    // Transforms x from range [a,b] to [c,d]
-    private float getNormalizedValue(float x, float a, float b, float c, float d) {
-        return ((x - a) * ((d - c) / (b - a))) + c;
+    @Override
+    protected List<Field> filterOutInvalidMoves(List<Field> validMoves, Type[][] map) {
+        return validMoves.stream().filter(field -> isValidField(field, map)).collect(Collectors.toList());
     }
 
     private float getDistanceFromWolf(Type[][] map) {
@@ -101,6 +104,7 @@ public class Sheep extends UzhShortNameCreature {
         Field fieldOfWolf = getFieldOfEnemyWolf(map);
 
         if (moveNr == 2) {
+
             Field up = new Field(fieldOfWolf.getX(), fieldOfWolf.getY() - 1);
             Field down = new Field(fieldOfWolf.getX(), fieldOfWolf.getY() + 1);
             Field left = new Field(fieldOfWolf.getX() - 1, fieldOfWolf.getY());
@@ -110,8 +114,24 @@ public class Sheep extends UzhShortNameCreature {
                     || hasTheSameCoordinates(field, left) || hasTheSameCoordinates(field, right);
 
             return isDangerous;
+        } else {
+            return false;
         }
-        return false;
+    }
+
+    private boolean couldBeEatenByWolfInSecondNextTurnOnThatField(Field field, Type[][] map) {
+        Field fieldOfWolf = getFieldOfEnemyWolf(map);
+
+            Field up = new Field(fieldOfWolf.getX(), fieldOfWolf.getY() - 2);
+            Field down = new Field(fieldOfWolf.getX(), fieldOfWolf.getY() + 2);
+            Field left = new Field(fieldOfWolf.getX() - 2, fieldOfWolf.getY());
+            Field right = new Field(fieldOfWolf.getX() + 2, fieldOfWolf.getY());
+
+            boolean isDangerous = hasTheSameCoordinates(field, up) || hasTheSameCoordinates(field, down)
+                    || hasTheSameCoordinates(field, left) || hasTheSameCoordinates(field, right);
+
+            return isDangerous;
+
     }
 
     protected void think(Type map[][]) {
@@ -120,7 +140,7 @@ public class Sheep extends UzhShortNameCreature {
         }
 
         if (alive) {
-            move = getMove(map, new Type[]{Type.GRASS});
+            move = getMove(map, new Type[]{Type.GRASS, Type.RHUBARB});
             System.out.println(move);
             moveNr++;
         }

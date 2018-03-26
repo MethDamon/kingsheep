@@ -33,6 +33,8 @@ public abstract class UzhShortNameCreature extends Creature {
         // For each node, which node it can most efficiently be reached from
         Map<Field, Field> cameFrom = new HashMap<>();
 
+        boolean noMoreGoalsLeft = false;
+
         Field start = new Field(this.x, this.y);
         start.setType(this.type);
         start.setgCost(0);
@@ -40,20 +42,26 @@ public abstract class UzhShortNameCreature extends Creature {
         openFields.add(start);
 
         List<Field> fieldsContainingObjective = getFieldsContainingTypes(map, objectives);
-        Field goal;
-        Optional<Field> goalOptional = fieldsContainingObjective.stream().min((o1, o2)
-                -> Float.compare(UzhShortNameCreature.this.getHeuristic(map, start, o1), UzhShortNameCreature.this.getHeuristic(map, start, o2)));
-        if (goalOptional.isPresent()) {
-            goal = goalOptional.get();
-            goal.setChildren(Collections.emptyList());
-            goal.setParent(null);
-            goal.sethCost(Float.MAX_VALUE);
-        } else {
+
+        Field goal = new Field(this.x, this.y);
+
+        if (fieldsContainingObjective.isEmpty()) {
+            noMoreGoalsLeft = true;
             // There are no more objective available, leave it to the subclasses to say what to do
             goal = getGoalWhenNoMoreObjectives(map);
             goal.setChildren(Collections.emptyList());
             goal.setParent(null);
             goal.sethCost(Float.MAX_VALUE);
+        } else {
+            boolean finalNoMoreGoalsLeft = false;
+            Optional<Field> goalOptional = fieldsContainingObjective.stream().min((o1, o2)
+                    -> Float.compare(UzhShortNameCreature.this.getHeuristic(finalNoMoreGoalsLeft, map, start, o1), UzhShortNameCreature.this.getHeuristic(finalNoMoreGoalsLeft, map, start, o2)));
+            if (goalOptional.isPresent()) {
+                goal = goalOptional.get();
+                goal.setChildren(Collections.emptyList());
+                goal.setParent(null);
+                goal.sethCost(Float.MAX_VALUE);
+            }
         }
 
         while (!openFields.isEmpty()) {
@@ -66,7 +74,6 @@ public abstract class UzhShortNameCreature extends Creature {
                 }
                 Move firstMoveTowardsGoal;
                 firstMoveTowardsGoal = Move.values()[totalPath.get(totalPath.size() - 1).getMoveFromParentToThis()];
-                System.out.println("I am a " + this.type + " and my move is " + firstMoveTowardsGoal.name());
                 return firstMoveTowardsGoal;
             }
 
@@ -91,7 +98,7 @@ public abstract class UzhShortNameCreature extends Creature {
 
                 if (tentativeG < child.getgCost()) {
                     child.setgCost(tentativeG);
-                    child.sethCost(getHeuristic(map, child, goal));
+                    child.sethCost(getHeuristic(noMoreGoalsLeft, map, child, goal));
 
                     if (!isIn(cameFrom.keySet(), child)) {
                         cameFrom.put(child, current);
@@ -151,7 +158,7 @@ public abstract class UzhShortNameCreature extends Creature {
         return result;
     }
 
-    protected abstract float getHeuristic(Type[][] map, Field start, Field goal);
+    protected abstract float getHeuristic(boolean noMoreGoalsLeft, Type[][] map, Field start, Field goal);
 
     private List<Field> getValidMovesFromField(Field start, Type[][] map) {
 
@@ -193,10 +200,15 @@ public abstract class UzhShortNameCreature extends Creature {
     }
 
 
-    protected float getManhattan(Field start, Field goal) {
+    float getManhattan(Field start, Field goal) {
         int dX = Math.abs(start.getX() - goal.getX());
         int dY = Math.abs(start.getY() - goal.getY());
         return (dX + dY);
+    }
+
+    // Transforms x from range [a,b] to [c,d]
+    float getNormalizedValue(float x, float a, float b, float c, float d) {
+        return ((x - a) * ((d - c) / (b - a))) + c;
     }
 
     protected abstract List<Field> filterOutInvalidMoves(List<Field> validMoves, Type[][] map);
